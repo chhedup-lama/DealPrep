@@ -31,7 +31,7 @@ from __future__ import annotations
 import streamlit as st
 
 from frontend.lib import icons, state
-from src.tools import list_owner_aes
+from frontend.lib.data import list_owner_aes
 
 # (label, script path, icon name in frontend/lib/icons.py)
 NAV_ITEMS: list[tuple[str, str, str]] = [

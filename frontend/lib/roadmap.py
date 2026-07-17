@@ -35,7 +35,7 @@ ROADMAP: list[dict] = [
     {
         "title": "Useful / not-useful feedback + precision tracking",
         "phase": "mvp",
-        "detail": "👍/👎 on every insight card, a reasoned dismiss (already handled / wrong / other), logged to a local feedback file and rolled up into a per-flag-type 'useful' rate on the home page.",
+        "detail": "Useful / Not useful on every insight card, a reasoned dismiss (already handled / wrong / other), logged to a local feedback file and rolled up into a per-flag-type 'useful' rate on the home page.",
         "source": "PRD-phase1-dashboard.md Phase 1D",
     },
     {

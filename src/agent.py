@@ -161,6 +161,35 @@ TOOLS = [
 ]
 
 
+def _build_system(
+    pinned_account_id: str | None = None,
+    pinned_account_brief: dict | None = None,
+) -> str:
+    system = SYSTEM_PROMPT
+    if pinned_account_id:
+        system += (
+            f"\n\nThe AE is currently viewing account {pinned_account_id} in the "
+            "dashboard. Use this account_id directly for get_account_brief and "
+            "the drill-down tools unless the AE clearly asks about a different "
+            "account — you do not need to call find_account for this one."
+        )
+    if pinned_account_brief:
+        # The dashboard already fetched this account's brief to render the
+        # page, before the AE ever opens the chat. Handing it over here
+        # skips a full get_account_brief tool round-trip (Claude call ->
+        # Snowflake -> Claude call) on the most common path: open an
+        # account, immediately ask about it.
+        system += (
+            "\n\nYou already have this account's brief below (fetched by the "
+            "dashboard when the page loaded) — skip the get_account_brief call "
+            "in step 2 above and lead your first response directly from these "
+            "flags instead. Only call get_account_brief again if the AE asks "
+            "you to refresh it.\n\n"
+            f"Account brief:\n{_json(pinned_account_brief)}"
+        )
+    return system
+
+
 def run_turn(
     client: anthropic.Anthropic,
     messages: list[dict],
@@ -172,19 +201,10 @@ def run_turn(
     pinned_account_id: set on the account detail page so the agent already
     knows which account is in view and can skip find_account.
     """
-    system = SYSTEM_PROMPT
-    if pinned_account_id:
-        system += (
-            f"\n\nThe AE is currently viewing account {pinned_account_id} in the "
-            "dashboard. Use this account_id directly for get_account_brief and "
-            "the drill-down tools unless the AE clearly asks about a different "
-            "account — you do not need to call find_account for this one."
-        )
-
     runner = client.beta.messages.tool_runner(
         model=MODEL,
         max_tokens=4096,
-        system=system,
+        system=_build_system(pinned_account_id),
         thinking={"type": "adaptive"},
         output_config={"effort": "medium"},
         tools=TOOLS,
@@ -194,6 +214,44 @@ def run_turn(
     for message in runner:
         last = message
     return {"role": "assistant", "content": last.content}
+
+
+def stream_turn(
+    client: anthropic.Anthropic,
+    messages: list[dict],
+    pinned_account_id: str | None = None,
+    pinned_account_brief: dict | None = None,
+    result: dict | None = None,
+):
+    """Streaming counterpart to run_turn(): yields assistant text as it
+    arrives instead of blocking until the full response is ready. Same
+    total latency under the hood, but a chat UI that shows text
+    progressively feels far faster than one that shows a spinner then
+    dumps the whole answer at once.
+
+    If `result` is passed, sets result["message"] to the same
+    {"role": "assistant", "content": [...]} dict run_turn() returns, once
+    the stream is exhausted — the caller appends that to their own history
+    after consuming the generator (e.g. via st.write_stream()).
+    """
+    runner = client.beta.messages.tool_runner(
+        model=MODEL,
+        max_tokens=4096,
+        system=_build_system(pinned_account_id, pinned_account_brief),
+        thinking={"type": "adaptive"},
+        output_config={"effort": "medium"},
+        tools=TOOLS,
+        messages=messages,
+        stream=True,
+    )
+    last_stream = None
+    for message_stream in runner:
+        last_stream = message_stream
+        yield from message_stream.text_stream
+
+    if result is not None and last_stream is not None:
+        final = last_stream.get_final_message()
+        result["message"] = {"role": "assistant", "content": final.content}
 
 
 def final_text(assistant_message: dict) -> str:

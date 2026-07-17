@@ -29,14 +29,15 @@ PHASE_COLORS = {
 }
 
 PHASE_LABELS = {
-    "mvp": "✅ Built (Phase 1)",
-    "phase2": "🔮 Phase 2",
-    "phase3": "🚀 Phase 3 — candidate",
+    "mvp": "Built (Phase 1)",
+    "phase2": "Phase 2",
+    "phase3": "Phase 3 — candidate",
 }
 
 def inject_css() -> None:
     thumbs_up_mask = icons.mask_data_uri("thumbs-up", "regular")
     arrow_up_mask = icons.mask_data_uri("arrow-up", "bold")
+    pencil_mask = icons.mask_data_uri("pencil", "regular")
 
     st.markdown(
         f"""
@@ -283,38 +284,49 @@ def inject_css() -> None:
             margin-top: 0.5rem;
         }}
 
-        /* Compact, uniform action-row buttons inside insight card containers
-        only (scoped via the container's key= -> st-key-card_* class), so
-        this doesn't affect unrelated buttons like Get Insights or
-        master-view Open buttons. Owns the full button style (not just
-        size) and covers the popover trigger too, which Streamlit doesn't
-        wrap in the same element as a plain st.button. */
-        div[class*="st-key-card_"] button {{
-            border-radius: 999px !important;
-            border: 1px solid {PURPLE} !important;
-            background: white !important;
-            color: {PURPLE} !important;
-            padding: 0.25rem 0.7rem !important;
-            min-height: 2.1rem !important;
-            font-size: 0.82rem !important;
-            white-space: nowrap !important;
-        }}
-        div[class*="st-key-card_"] button:hover {{
-            background: {PURPLE_LIGHT} !important;
+        /* Insight card container — light shade fill, equal height within a
+        row (st.container(..., height="stretch")), and position:relative
+        so the invisible full-card open-overlay button below can anchor to
+        it. Scoped via the container's key= -> st-key-card_* class. */
+        div[class*="st-key-card_"] {{
+            position: relative;
+            background: #FBFAFE !important;
         }}
 
-        /* Useful / Not useful feedback buttons — icon-only, same shared
-        icon system (regular weight, since feedback is a secondary action
-        relative to primary nav). Text label stays in the DOM for
-        accessibility (aria-label, tooltip) but is visually hidden; the
-        icon is the same thumbs-up glyph mirrored vertically for "not
-        useful" via a CSS transform, not a second hand-drawn icon. */
+        div[class*="st-key-cardactions_"] {{
+            margin-top: 0.85rem;
+        }}
+
+        /* Useful / Not useful — plain like/unlike icons, no button chrome
+        at all (no border, no background, no pill), same shared icon
+        system (regular weight, secondary action). Every descendant text
+        node is forced invisible with the universal selector, not just the
+        button itself, since Streamlit nests the label in its own element
+        that can otherwise still paint through a bare `color:transparent`
+        on the outer <button>. The label stays in the DOM for
+        accessibility (aria-label, tooltip). Icon is the same thumbs-up
+        glyph mirrored vertically for "not useful", not a second
+        hand-drawn icon; gray by default, purple on hover. */
         [class*="st-key-useful_"] button,
         [class*="st-key-notuseful_"] button {{
             position: relative !important;
-            color: transparent !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 0.3rem !important;
+            width: 2.1rem !important;
+            min-width: 2.1rem !important;
+            height: 2.1rem !important;
+        }}
+        [class*="st-key-useful_"] button *,
+        [class*="st-key-notuseful_"] button * {{
             font-size: 0 !important;
-            min-width: 2.4rem !important;
+            color: transparent !important;
+        }}
+        [class*="st-key-useful_"] button:hover,
+        [class*="st-key-notuseful_"] button:hover {{
+            background: {PURPLE_LIGHT} !important;
+            border-radius: 999px !important;
         }}
         [class*="st-key-useful_"] button::before,
         [class*="st-key-notuseful_"] button::before {{
@@ -324,9 +336,13 @@ def inject_css() -> None:
             left: 50%;
             width: 18px;
             height: 18px;
-            background-color: {PURPLE};
+            background-color: {GRAY};
             -webkit-mask: url("{thumbs_up_mask}") no-repeat center / 18px 18px;
             mask: url("{thumbs_up_mask}") no-repeat center / 18px 18px;
+        }}
+        [class*="st-key-useful_"] button:hover::before,
+        [class*="st-key-notuseful_"] button:hover::before {{
+            background-color: {PURPLE};
         }}
         [class*="st-key-useful_"] button::before {{
             transform: translate(-50%, -50%);
@@ -335,14 +351,92 @@ def inject_css() -> None:
             transform: translate(-50%, -50%) scaleY(-1);
         }}
 
+        /* Open + Dismiss popover trigger + Useful/Not-useful sit in one
+        row — compact pill for Open/Dismiss (thumbs are icon-only, styled
+        above). */
+        div[class*="st-key-cardactions_"] [class*="st-key-view_"] button,
+        div[class*="st-key-cardactions_"] [data-testid="stPopover"] button {{
+            border-radius: 999px !important;
+            border: 1px solid {PURPLE} !important;
+            background: white !important;
+            color: {PURPLE} !important;
+            padding: 0.25rem 0.7rem !important;
+            min-height: 2.1rem !important;
+            font-size: 0.82rem !important;
+            white-space: nowrap !important;
+        }}
+        div[class*="st-key-cardactions_"] [class*="st-key-view_"] button:hover,
+        div[class*="st-key-cardactions_"] [data-testid="stPopover"] button:hover {{
+            background: {PURPLE_LIGHT} !important;
+        }}
+
+        /* "Draft opening & call script" — icon prefix + visible label
+        (unlike the icon-only thumbs/send buttons, this one keeps its
+        text), same shared icon system. */
+        [class*="st-key-draft_script_btn"] button {{
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }}
+        [class*="st-key-draft_script_btn"] button::before {{
+            content: '';
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            background-color: currentColor;
+            -webkit-mask: url("{pencil_mask}") no-repeat center / 16px 16px;
+            mask: url("{pencil_mask}") no-repeat center / 16px 16px;
+        }}
+
+        /* Insight category tabs (Prepare Now / Discovery Calls / ...) —
+        icon + label. Tab labels only support Markdown, not raw HTML/CSS
+        masks, so each icon is a Markdown image (icons.image_data_uri());
+        Streamlit renders it inline at font-height but leaves no gap before
+        the label text, so the margin below is what actually separates them. */
+        div[class*="st-key-insight_tabs"] [data-baseweb="tab"] img {{
+            margin-right: 6px;
+            vertical-align: -3px;
+        }}
+
         .hero-panel {{
             background: linear-gradient(135deg, {PURPLE_LIGHT}, #EDE4FB);
             border-radius: 16px;
             padding: 1.5rem 1.75rem;
             margin-bottom: 1.25rem;
         }}
+
+        /* Page heading — icon + title, the same shared icon system used
+        everywhere else (nav, cards, buttons), replacing the emoji every
+        page used to lead with. */
+        .page-heading {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: {BLACK};
+            margin-bottom: 0.25rem;
+        }}
+        .status-dot {{
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: {PRIORITY_COLORS['Critical']};
+        }}
         </style>
         """,
+        unsafe_allow_html=True,
+    )
+
+
+def page_heading(icon_name: str, title: str) -> None:
+    """Icon + title page header, replacing the old '### emoji Title'
+    pattern every page used — same shared Phosphor icon system used in the
+    sidebar nav, insight cards, and buttons."""
+    st.markdown(
+        f'<div class="page-heading">{icons.svg(icon_name, "bold", 22)}<span>{title}</span></div>',
         unsafe_allow_html=True,
     )
 

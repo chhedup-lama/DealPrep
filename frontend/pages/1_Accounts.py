@@ -11,8 +11,8 @@ import pandas as pd
 import streamlit as st
 
 from frontend.lib import nav, state
-from frontend.lib.branding import inject_css
-from src.tools import list_accounts
+from frontend.lib.branding import inject_css, page_heading
+from frontend.lib.data import list_accounts
 
 st.set_page_config(
     page_title="Accounts — AE Call-Prep", page_icon="📇", layout="wide", initial_sidebar_state="collapsed"
@@ -21,7 +21,7 @@ inject_css()
 
 ae = nav.render_sidebar_nav("Accounts")
 
-st.markdown(f"### 📇 Accounts — {ae}")
+page_heading("buildings", f"Accounts — {ae}")
 
 accounts = list_accounts(ae)
 df = pd.DataFrame(accounts)
@@ -51,13 +51,12 @@ if segment_filter:
 if region_filter:
     filtered = filtered[filtered["REGION"].isin(region_filter)]
 
-filtered["⚑"] = filtered["ACCOUNT_ID"].apply(lambda x: "🔴" if x in flagged_ids else "")
-
 st.caption(f"{len(filtered)} of {len(df)} accounts")
 
 for _, row in filtered.iterrows():
     c1, c2, c3, c4, c5 = st.columns([0.4, 3, 1.2, 1.2, 1])
-    c1.write(row["⚑"])
+    if row["ACCOUNT_ID"] in flagged_ids:
+        c1.markdown('<span class="status-dot"></span>', unsafe_allow_html=True)
     c2.write(f"**{row['COMPANY_NAME']}**")
     c3.write(row["STATUS"])
     c4.write(f"{row['SEGMENT']} · {row['REGION']}")

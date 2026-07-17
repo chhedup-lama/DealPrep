@@ -16,20 +16,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import pandas as pd
 import streamlit as st
 
-from frontend.lib import feedback, nav, state
-from frontend.lib.branding import inject_css, insight_card, priority_pill
-from frontend.lib.insights import card_from_flag
-from src import retrieval, scoring
-from src.agent import build_client, final_text, run_turn
-from src.tools import (
+from frontend.lib import feedback, icons, nav, state
+from frontend.lib.branding import inject_css, insight_card, page_heading, priority_pill
+from frontend.lib.chat import render_chat_turn
+from frontend.lib.data import (
+    build_account_brief,
     get_account_core,
     get_activities,
     get_contacts,
     get_opportunities,
     get_tickets,
     get_usage_trend,
-    build_account_brief,
 )
+from frontend.lib.insights import card_from_flag
+from frontend.lib.tables import render_table
+from src import retrieval, scoring
+from src.agent import build_client, final_text, run_turn
 
 st.set_page_config(
     page_title="Account — AE Call-Prep", page_icon="🏢", layout="wide", initial_sidebar_state="collapsed"
@@ -67,7 +69,7 @@ usage = get_usage_trend(account_id, months=12)
 tickets = get_tickets(account_id)
 contacts = get_contacts(account_id)
 
-st.markdown(f"### 🏢 {account['COMPANY_NAME']}")
+page_heading("buildings", account["COMPANY_NAME"])
 
 header_bits = [account["STATUS"].title(), account["SEGMENT"], account["REGION"]]
 if account.get("ARR_EUR"):
@@ -105,7 +107,7 @@ if cards:
                         feedback.record(ae, account_id, card["flag"]["type"], "not_useful")
                         st.toast("Got it — marked not useful.")
 else:
-    st.success("✅ No flags on this account right now.")
+    st.success("No flags on this account right now.")
 
 # --- Current state ---
 nearest_opp = scoring.nearest_open_opportunity(open_opportunities, as_of)
@@ -165,9 +167,16 @@ personas_present = {c["PERSONA_TYPE"] for c in contacts}
 for role in ("Economic Buyer", "Champion", "Technical"):
     if role in personas_present:
         names = ", ".join(c["FULL_NAME"] for c in contacts if c["PERSONA_TYPE"] == role)
-        st.markdown(f"- ✅ **{role}**: {names}")
+        icon = icons.svg("check", "bold", 15, "#16A34A")
+        detail = names
     else:
-        st.markdown(f"- ⚠️ **{role}**: none on file")
+        icon = icons.svg("warning", "bold", 15, "#CA8A04")
+        detail = "none on file"
+    st.markdown(
+        f'<div style="display:flex;align-items:center;gap:6px;margin:0.2rem 0;">'
+        f'{icon}<span><b>{role}</b>: {detail}</span></div>',
+        unsafe_allow_html=True,
+    )
 
 # --- Recommended next-best action ---
 st.markdown("#### Recommended next-best action")
@@ -179,7 +188,9 @@ else:
 # --- Suggested call script ---
 st.markdown("#### Suggested call script")
 script_key = f"call_script::{account_id}"
-if st.button("✍️ Draft opening & call script"):
+with st.container(key="draft_script_btn"):
+    draft_clicked = st.button("Draft opening & call script")
+if draft_clicked:
     top_flags = "; ".join(c["flag"]["detail"] for c in cards[:3]) or "no active flags"
     prompt = (
         f"Draft a short opening line and a 4-5 point call script for my upcoming call with "
@@ -223,13 +234,21 @@ tab_activity, tab_opps, tab_usage, tab_tickets, tab_contacts = st.tabs(
 
 with tab_activity:
     if activities:
-        st.dataframe(pd.DataFrame(activities), width="stretch", hide_index=True)
+        render_table(
+            pd.DataFrame(activities),
+            hide=("OPPORTUNITY_ID", "CONTACT_ID"),
+            widths={"SUBJECT": "medium", "SUMMARY": "large"},
+        )
     else:
         st.caption("No activity in the last 90 days.")
 
 with tab_opps:
     if opportunities:
-        st.dataframe(pd.DataFrame(opportunities), width="stretch", hide_index=True)
+        render_table(
+            pd.DataFrame(opportunities),
+            hide=("OPPORTUNITY_ID",),
+            widths={"NAME": "medium", "WON_LOST_REASON": "medium"},
+        )
     else:
         st.caption("No opportunities on file.")
 
@@ -237,19 +256,27 @@ with tab_usage:
     if usage:
         df = pd.DataFrame(usage).sort_values("MONTH")
         st.line_chart(df.set_index("MONTH")[["MONTHLY_ACTIVE_USERS", "LOGINS"]])
-        st.dataframe(df, width="stretch", hide_index=True)
+        render_table(df)
     else:
         st.caption("No product usage on file (prospect).")
 
 with tab_tickets:
     if tickets:
-        st.dataframe(pd.DataFrame(tickets), width="stretch", hide_index=True)
+        render_table(
+            pd.DataFrame(tickets),
+            hide=("TICKET_ID",),
+            widths={"SUBJECT": "medium", "SUMMARY": "large"},
+        )
     else:
         st.caption("No support tickets.")
 
 with tab_contacts:
     if contacts:
-        st.dataframe(pd.DataFrame(contacts), width="stretch", hide_index=True)
+        render_table(
+            pd.DataFrame(contacts),
+            hide=("CONTACT_ID",),
+            widths={"FULL_NAME": "medium", "EMAIL": "medium"},
+        )
     else:
         st.caption("No contacts on file.")
 
@@ -266,12 +293,6 @@ for msg in history:
         st.write(text)
 
 if prompt := st.chat_input(f"Ask about {account['COMPANY_NAME']}..."):
-    history.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.write(prompt)
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            client = build_client()
-            assistant_message = run_turn(client, history, pinned_account_id=account_id)
-        st.write(final_text(assistant_message))
-    history.append(assistant_message)
+    render_chat_turn(
+        build_client(), history, prompt, pinned_account_id=account_id, pinned_account_brief=brief
+    )

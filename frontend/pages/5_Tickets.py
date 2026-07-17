@@ -11,8 +11,9 @@ import pandas as pd
 import streamlit as st
 
 from frontend.lib import nav
-from frontend.lib.branding import inject_css
-from src.tools import list_tickets_for_ae
+from frontend.lib.branding import inject_css, page_heading
+from frontend.lib.data import list_tickets_for_ae
+from frontend.lib.tables import render_table
 
 st.set_page_config(
     page_title="Tickets — AE Call-Prep", page_icon="🎫", layout="wide", initial_sidebar_state="collapsed"
@@ -21,7 +22,7 @@ inject_css()
 
 ae = nav.render_sidebar_nav("Tickets")
 
-st.markdown(f"### 🎫 Support Tickets — {ae}")
+page_heading("ticket", f"Support Tickets — {ae}")
 
 tickets = list_tickets_for_ae(ae)
 if not tickets:
@@ -39,8 +40,8 @@ if priority_filter:
     filtered = filtered[filtered["PRIORITY"].isin(priority_filter)]
 
 st.caption(f"{len(filtered)} of {len(df)} tickets")
-st.dataframe(
+render_table(
     filtered.sort_values("CREATED_DATE", ascending=False),
-    width="stretch",
-    hide_index=True,
+    hide=("TICKET_ID",),
+    widths={"COMPANY_NAME": "medium", "SUBJECT": "medium"},
 )

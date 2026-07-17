@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import streamlit as st
 
 from frontend.lib import nav
-from frontend.lib.branding import inject_css, roadmap_card
+from frontend.lib.branding import inject_css, page_heading, roadmap_card
 from frontend.lib.roadmap import by_phase
 
 st.set_page_config(
@@ -27,14 +27,14 @@ inject_css()
 
 nav.render_sidebar_nav("Roadmap")
 
-st.markdown("### 🗺️ Roadmap")
+page_heading("map", "Roadmap")
 st.caption(
     "What's built, what's next — kept honest on purpose. Full detail in "
     "`docs/PRD-phase1-dashboard.md`."
 )
 
 tab_mvp, tab_p2, tab_p3 = st.tabs(
-    ["✅ Built (Phase 1 — full track)", "🔮 Phase 2", "🚀 Phase 3"]
+    ["Built (Phase 1 — full track)", "Phase 2", "Phase 3"]
 )
 
 with tab_mvp:

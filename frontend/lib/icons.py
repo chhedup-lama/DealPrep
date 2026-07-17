@@ -70,6 +70,25 @@ _SHAPES: dict[str, str] = {
         '<line x1="12" y1="19" x2="12" y2="6"/>'
         '<polyline points="7,11 12,6 17,11"/>'
     ),
+    "check": ('<polyline points="4,13 9,18 20,6"/>'),
+    "warning": (
+        '<path d="M12 4L3 20h18L12 4z" fill="none"/>'
+        '<line x1="12" y1="10" x2="12" y2="15"/>'
+        '<circle cx="12" cy="17.7" r="0.9" fill="currentColor" stroke="none"/>'
+    ),
+    "pencil": (
+        '<path d="M4 20l1-5L16 4l4 4L9 19l-5 1z" fill="none"/>'
+        '<line x1="13" y1="6.5" x2="17.5" y2="11"/>'
+    ),
+    "phone": (
+        '<rect x="7" y="2" width="10" height="20" rx="2"/>'
+        '<circle cx="12" cy="18" r="0.9" fill="currentColor" stroke="none"/>'
+    ),
+    "shield": ('<polygon points="12,3 18,5.5 18,11 12,20 6,11 6,5.5"/>'),
+    "eye": (
+        '<path d="M2 12 A10 6 0 0 1 22 12 A10 6 0 0 1 2 12 Z" fill="none"/>'
+        '<circle cx="12" cy="12" r="3"/>'
+    ),
 }
 
 
@@ -96,6 +115,23 @@ def mask_data_uri(name: str, weight: str = "bold") -> str:
     markup = (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
         f'fill="none" stroke="black" stroke-width="{stroke_width}" '
+        f'stroke-linecap="round" stroke-linejoin="round">{shape}</svg>'
+    )
+    encoded = base64.b64encode(markup.encode("utf-8")).decode("ascii")
+    return f"data:image/svg+xml;base64,{encoded}"
+
+
+def image_data_uri(name: str, weight: str = "bold", size: int = 24, color: str = "currentColor") -> str:
+    """A single-color SVG data URI for embedding via Markdown image syntax
+    (e.g. `st.tabs` labels, which render GitHub-flavored Markdown images
+    like icons but can't hold raw HTML/CSS masks). Unlike mask_data_uri(),
+    the color is baked directly into the glyph since an <img> src has no
+    CSS currentColor to inherit through."""
+    shape = _SHAPES[name]
+    stroke_width = WEIGHTS[weight]
+    markup = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
+        f'fill="none" stroke="{color}" stroke-width="{stroke_width}" '
         f'stroke-linecap="round" stroke-linejoin="round">{shape}</svg>'
     )
     encoded = base64.b64encode(markup.encode("utf-8")).decode("ascii")
