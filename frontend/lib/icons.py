@@ -66,6 +66,10 @@ _SHAPES: dict[str, str] = {
         '<path d="M9 21h7.6a2 2 0 0 0 1.9-1.4l1.6-6A2 2 0 0 0 18.2 11H13V6.2a1.5 1.5 0 0 0-3 0V10L9 11z" '
         'fill="currentColor" stroke="none"/>'
     ),
+    "arrow-up": (
+        '<line x1="12" y1="19" x2="12" y2="6"/>'
+        '<polyline points="7,11 12,6 17,11"/>'
+    ),
 }
 
 

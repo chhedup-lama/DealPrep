@@ -36,6 +36,7 @@ PHASE_LABELS = {
 
 def inject_css() -> None:
     thumbs_up_mask = icons.mask_data_uri("thumbs-up", "regular")
+    arrow_up_mask = icons.mask_data_uri("arrow-up", "bold")
 
     st.markdown(
         f"""
@@ -104,13 +105,79 @@ def inject_css() -> None:
             border-radius: 8px !important;
         }}
 
-        /* Centered ChatGPT-style hero heading on the home page. */
+        /* Chat / Get Insights tab toggle on the home page, restyled from
+        Streamlit's default underlined tabs into a centered rounded pill
+        segmented control (personio/chatgpt-style). Targets the standard
+        ARIA tab roles rather than generated class names, since those are
+        stable across Streamlit versions. */
+        [data-testid="stTabs"] [role="tablist"] {{
+            justify-content: center;
+            gap: 0.2rem;
+            background: #F3F4F6;
+            border-radius: 999px;
+            padding: 0.25rem;
+            width: fit-content;
+            margin: 1rem auto 0;
+            border-bottom: none !important;
+        }}
+        [data-testid="stTabs"] [role="tab"] {{
+            border-radius: 999px !important;
+            border: none !important;
+            padding: 0.45rem 1.4rem !important;
+            font-weight: 600 !important;
+            font-size: 0.88rem !important;
+            color: {GRAY} !important;
+            background: transparent !important;
+        }}
+        [data-testid="stTabs"] [role="tab"][aria-selected="true"] {{
+            background: white !important;
+            color: {BLACK} !important;
+            box-shadow: 0 1px 3px rgba(17,17,17,0.12) !important;
+        }}
+        [data-testid="stTabs"] [data-baseweb="tab-highlight"] {{
+            display: none !important;
+        }}
+
+        /* Centered ChatGPT-style hero heading + input on the Chat tab. */
         .hero-heading {{
             font-size: 1.7rem;
             font-weight: 700;
             color: {BLACK};
             text-align: center;
-            margin: 2.5rem 0 1.5rem;
+            margin: 10vh 0 1.5rem;
+        }}
+        div[class*="st-key-chat_input_row"] {{
+            max-width: 640px;
+            margin: 0 auto;
+        }}
+        div[class*="st-key-chat_input_row"] [data-testid="stTextInput"] input {{
+            border-radius: 999px !important;
+            padding: 0.85rem 1.25rem !important;
+            border: 1px solid #E5E7EB !important;
+            box-shadow: 0 2px 10px rgba(17,17,17,0.06) !important;
+        }}
+        div[class*="st-key-chat_input_row"] [data-testid="stFormSubmitButton"] button {{
+            border-radius: 999px !important;
+            background: {BLACK} !important;
+            border: none !important;
+            width: 2.6rem !important;
+            height: 2.6rem !important;
+            padding: 0 !important;
+            color: transparent !important;
+            font-size: 0 !important;
+            position: relative !important;
+        }}
+        div[class*="st-key-chat_input_row"] [data-testid="stFormSubmitButton"] button::before {{
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 18px;
+            height: 18px;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            -webkit-mask: url("{arrow_up_mask}") no-repeat center / 18px 18px;
+            mask: url("{arrow_up_mask}") no-repeat center / 18px 18px;
         }}
 
         /* Primary CTA buttons — black, pill-shaped, matches personio.com's "Book your demo" */
