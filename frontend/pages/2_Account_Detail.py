@@ -17,8 +17,8 @@ import pandas as pd
 import streamlit as st
 
 from frontend.lib import feedback, icons, nav, state
-from frontend.lib.branding import inject_css, insight_card, page_heading, priority_pill
-from frontend.lib.chat import render_chat_turn
+from frontend.lib.branding import enablement_card, flag_row, inject_css, page_heading, priority_pill
+from frontend.lib.chat import render_chat_history, render_chat_turn
 from frontend.lib.data import (
     build_account_brief,
     get_account_core,
@@ -83,29 +83,27 @@ st.markdown(header_html, unsafe_allow_html=True)
 
 st.divider()
 
-# --- Why this was flagged (evidence-backed, one card per flag) ---
+# --- Why this was flagged (evidence-backed, one compact row per flag) ---
 if cards:
     st.markdown("#### Why this was flagged")
-    cols = st.columns(2, gap="medium") if len(cards) > 1 else [st.container()]
-    for i, card in enumerate(cards):
-        with cols[i % len(cols)]:
-            with st.container(border=True, key=f"card_{card['key']}"):
-                insight_card(card)
+    for card in cards:
+        with st.container(border=True, key=f"card_{card['key']}"):
+            row_col, thumb_col = st.columns([14, 1], gap="small")
+            with row_col:
+                flag_row(card, show_account=False)
                 evidence_ids = [
                     v for k, v in card["flag"].items()
                     if k in ("opportunity_id", "ticket_id") and v
                 ]
                 if evidence_ids:
                     st.caption(f"Evidence record(s): {' · '.join(evidence_ids)}")
-                c1, c2, _ = st.columns([1, 1, 3], gap="small")
-                with c1:
-                    if st.button("Useful", key=f"useful_{card['key']}", help="Mark useful"):
-                        feedback.record(ae, account_id, card["flag"]["type"], "useful")
-                        st.toast("Thanks — marked useful.")
-                with c2:
-                    if st.button("Not useful", key=f"notuseful_{card['key']}", help="Mark not useful"):
-                        feedback.record(ae, account_id, card["flag"]["type"], "not_useful")
-                        st.toast("Got it — marked not useful.")
+            with thumb_col:
+                if st.button("Useful", key=f"useful_{card['key']}", help="Mark useful"):
+                    feedback.record(ae, account_id, card["flag"]["type"], "useful")
+                    st.toast("Thanks — marked useful.")
+                if st.button("Not useful", key=f"notuseful_{card['key']}", help="Mark not useful"):
+                    feedback.record(ae, account_id, card["flag"]["type"], "not_useful")
+                    st.toast("Got it — marked not useful.")
 else:
     st.success("No flags on this account right now.")
 
@@ -220,9 +218,9 @@ else:
     query = "sales playbook"
 hits = retrieval.search_enablement(query, top_k=3)
 if hits:
-    for hit in hits:
-        with st.expander(f"{hit['source']} — {hit['section']}"):
-            st.write(hit["text"])
+    for i, hit in enumerate(hits):
+        with st.container(border=True, key=f"enablement_{account_id}_{i}"):
+            enablement_card(hit["source"], hit["section"], hit["text"])
 else:
     st.caption("No matching enablement content found.")
 
@@ -286,13 +284,15 @@ st.markdown("#### Ask about this account")
 history_key = f"account::{account_id}"
 history = state.get_chat_history(history_key)
 
-for msg in history:
-    role = "assistant" if msg["role"] == "assistant" else "user"
-    text = final_text(msg) if role == "assistant" else msg["content"]
-    with st.chat_message(role):
-        st.write(text)
+render_chat_history(history, key_prefix=f"account_{account_id}")
 
 if prompt := st.chat_input(f"Ask about {account['COMPANY_NAME']}..."):
     render_chat_turn(
-        build_client(), history, prompt, pinned_account_id=account_id, pinned_account_brief=brief
+        build_client(),
+        history,
+        prompt,
+        pinned_account_id=account_id,
+        pinned_account_brief=brief,
+        owner_ae=ae,
+        key_prefix=f"account_{account_id}",
     )

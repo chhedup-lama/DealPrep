@@ -36,3 +36,16 @@ def get_chat_history(key: str) -> list[dict]:
 
 def clear_chat_history(key: str) -> None:
     st.session_state[f"chat::{key}"] = []
+
+
+def get_citations_store(key: str) -> dict[int, list]:
+    """Citations for a chat, keyed by the assistant message's index in that
+    same chat's history list. Kept separate from the history list itself —
+    not as an extra key on the message dict — because those dicts get fed
+    straight back to the Anthropic API as conversation history on later
+    turns, and the API rejects any key outside {role, content}."""
+    return st.session_state.setdefault(f"citations::{key}", {})
+
+
+def set_citations(key: str, index: int, citations: list) -> None:
+    get_citations_store(key)[index] = citations

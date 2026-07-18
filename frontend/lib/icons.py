@@ -70,6 +70,10 @@ _SHAPES: dict[str, str] = {
         '<line x1="12" y1="19" x2="12" y2="6"/>'
         '<polyline points="7,11 12,6 17,11"/>'
     ),
+    "arrow-down": (
+        '<line x1="12" y1="5" x2="12" y2="18"/>'
+        '<polyline points="7,13 12,18 17,13"/>'
+    ),
     "check": ('<polyline points="4,13 9,18 20,6"/>'),
     "warning": (
         '<path d="M12 4L3 20h18L12 4z" fill="none"/>'

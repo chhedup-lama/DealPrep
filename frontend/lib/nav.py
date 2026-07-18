@@ -33,6 +33,8 @@ import streamlit as st
 from frontend.lib import icons, state
 from frontend.lib.data import list_owner_aes
 
+DEFAULT_AE = "lena.koehler@personio.de"
+
 # (label, script path, icon name in frontend/lib/icons.py)
 NAV_ITEMS: list[tuple[str, str, str]] = [
     ("Home", "app.py", "house"),
@@ -62,7 +64,7 @@ def render_sidebar_nav(current: str | None) -> str:
     default on first load so every page works as a direct entry point."""
     owner_aes = list_owner_aes()
     if state.current_ae() not in owner_aes:
-        state.set_current_ae(owner_aes[0])
+        state.set_current_ae(DEFAULT_AE if DEFAULT_AE in owner_aes else owner_aes[0])
 
     with st.sidebar:
         for label, path, icon_name in NAV_ITEMS:

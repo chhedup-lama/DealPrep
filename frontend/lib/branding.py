@@ -284,6 +284,68 @@ def inject_css() -> None:
             margin-top: 0.5rem;
         }}
 
+        /* Relevant enablement (Account Detail) — content shown directly,
+        no st.expander/click needed. The AE is prepping under time
+        pressure; a collapsed section nobody opens isn't help, it's a
+        hidden requirement. */
+        .enablement-label {{
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: {PURPLE};
+            margin-bottom: 0.35rem;
+        }}
+
+        /* Compact flag row (Account Detail's "Why this was flagged") —
+        icon-in-circle + one glanceable line, replacing a tall bordered
+        card per flag. The account name isn't repeated here (unlike
+        insight_card, used on the cross-account Home feed) since every row
+        already belongs to the one account on screen. */
+        .flag-row {{
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }}
+        .flag-row-icon {{
+            flex-shrink: 0;
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        .flag-row-body {{
+            flex: 1;
+            min-width: 0;
+        }}
+        .flag-row-top {{
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.3rem;
+        }}
+        .flag-row-meta {{
+            color: {GRAY};
+            font-size: 0.78rem;
+            margin-left: auto;
+            white-space: nowrap;
+        }}
+        .flag-row-detail {{
+            color: {BLACK};
+            font-weight: 600;
+            font-size: 0.93rem;
+            line-height: 1.4;
+        }}
+        .flag-row-action {{
+            color: {PURPLE};
+            font-size: 0.84rem;
+            margin-top: 0.3rem;
+            line-height: 1.4;
+        }}
+
         /* Insight card container — light shade fill, equal height within a
         row (st.container(..., height="stretch")), and position:relative
         so the invisible full-card open-overlay button below can anchor to
@@ -489,6 +551,83 @@ def insight_card(card: dict) -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+FLAG_ICONS: dict[str, str] = {
+    "stalled_opportunity": "clock",
+    "renewal_approaching": "clock",
+    "no_economic_buyer": "users",
+    "no_champion": "users",
+    "usage_decline": "arrow-down",
+    "open_priority_ticket": "ticket",
+    "quiet_account": "eye",
+    "competitor_mentioned": "shield",
+}
+
+
+def flag_row(card: dict, show_account: bool = True) -> None:
+    """Compact, single-glance rendering of one scored flag: a band-colored
+    icon (category glyph in a tinted circle) plus one line each for the
+    detail, the recommended action, and evidence chips — instead of
+    insight_card()'s taller bordered layout. Built for Account Detail's "Why
+    this was flagged" list, where every flag already belongs to the one
+    account on screen, so repeating the company name per row (as
+    insight_card does, correctly, on the cross-account Home feed) was pure
+    noise that made distinct flags on the same account read as duplicates."""
+    color = PRIORITY_COLORS.get(card["band"], GRAY)
+    icon_name = FLAG_ICONS.get(card["flag"]["type"], "warning")
+
+    meta_bits = []
+    if card.get("deal_value"):
+        meta_bits.append(f"€{card['deal_value']:,.0f}")
+    if card.get("urgency_label"):
+        meta_bits.append(card["urgency_label"])
+    meta_line = "&nbsp;·&nbsp;".join(meta_bits)
+
+    chips_html = "".join(f'<span class="chip">{c}</span>' for c in card.get("evidence_chips", []))
+
+    # Built as one joined string, not one-placeholder-per-template-line: an
+    # empty substitution (show_account=False) landing alone on its own line
+    # is a blank line, and a blank line inside this HTML block makes
+    # Streamlit's markdown renderer treat everything after it as an
+    # indented code block instead of HTML — it did exactly that before this
+    # was joined into a single non-blank line.
+    top_parts = [priority_pill(card["band"])]
+    if show_account:
+        top_parts.append(f'<span class="flag-account">{card["company_name"]}</span>')
+    if meta_line:
+        top_parts.append(f'<span class="flag-row-meta">{meta_line}</span>')
+    top_html = "".join(top_parts)
+
+    st.markdown(
+        f"""
+        <div class="flag-row">
+            <div class="flag-row-icon" style="background:{color}1A;">
+                {icons.svg(icon_name, "bold", 18, color)}
+            </div>
+            <div class="flag-row-body">
+                <div class="flag-row-top">{top_html}</div>
+                <div class="flag-row-detail">{card['flag']['detail']}</div>
+                <div class="flag-row-action">→ {card['recommended_action']}</div>
+                <div class="insight-chips">{chips_html}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def enablement_card(source: str, section: str, text: str) -> None:
+    """One enablement search hit, always visible — no expander. Callers
+    wrap this in `st.container(border=True, ...)` for visual separation
+    between hits. `text` still goes through st.write() (not raw HTML)
+    so the source markdown's bullets/bold keep rendering as they did
+    inside the old expander."""
+    st.markdown(
+        f'<div class="enablement-label">{source} — {section}</div>',
+        unsafe_allow_html=True,
+    )
+    st.write(text)
 
 
 def phase_pill(phase: str) -> str:

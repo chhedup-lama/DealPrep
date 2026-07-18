@@ -24,14 +24,40 @@ chat — the AE can drill into activities, opportunities, usage, tickets,
 contacts, or ask the enablement docs directly ("what does the playbook say
 about qualifying a deal in Demo stage?").
 
+**Built past the brief:** a Streamlit dashboard (`frontend/`) that turns the
+same agent and tools into a daily-workflow product, per `docs/PRD-phase1-dashboard.md`.
+It reuses `src/agent.py`/`src/tools.py` unchanged — no forked logic, only a UI
+layer on top:
+
+- **Get Insights** — a portfolio-wide scan across everything the signed-in AE
+  owns. Every flag becomes a scored insight card (`src/scoring.py`: time
+  urgency, deal value, account importance, risk severity, actionability —
+  five independently rule-based dimensions, summed into a Critical/High/
+  Medium/Low band), grouped into a capped "Prepare Now" feed plus category
+  buckets (High-Risk Renewals, Expansion, Discovery, Missing Stakeholders,
+  Support Risk, Competitive Risk, Monitor).
+- **Account Detail workspace** — why-flagged evidence cards, a templated
+  current-state summary, a what-happened-so-far timeline, stakeholder-gap
+  callouts, one specific recommended next-best action, an on-demand
+  LLM-drafted call script (grounded in the account's own flags, via the same
+  agent), proactively-surfaced relevant enablement, and drill-down tabs for
+  Activity/Opportunities/Usage/Tickets/Contacts.
+- **Trust loop** — Useful / Not useful on every insight card, plus a reasoned
+  dismiss (already handled / wrong / other), logged to `data/feedback.jsonl`
+  and rolled up into a live per-flag-type precision readout on the Home page.
+- **Master data views**, streamed chat responses, and an AE picker standing
+  in for auth.
+
+This is the thing that turns the case's conversational proof-of-concept into
+something an AE would plausibly open every morning, not a slide about future
+vision.
+
 **Cut, deliberately, from the case submission itself:**
-- **No web UI required.** The brief asks for "conversational, multi-turn" —
-  the CLI chat loop (`src/cli.py`) satisfies that on its own, and is what the
-  agent quality above was validated against. A Streamlit dashboard
-  (`frontend/`) exists in this repo too, but it's a stretch artifact built on
-  top of the same unchanged `src/agent.py`/`src/tools.py` — see
-  `docs/PRD.md` and `docs/FRONTEND-BUILD-PLAN.md`. It demonstrates the
-  product's path past the brief, not a requirement of it.
+- **The CLI remains the required deliverable.** The brief asks for
+  "conversational, multi-turn" — `src/cli.py` satisfies that on its own, and
+  is what the agent quality below was validated against. The dashboard is
+  additional, not-required scope; see `docs/PRD-phase1-dashboard.md` and
+  `docs/FRONTEND-BUILD-PLAN.md` for its own scope and trade-offs.
 - **No vector/embedding search.** The enablement corpus is 8 short docs
   (~45KB). A simple header-chunked keyword search is fast, free, and fully
   inspectable — the right tool for this corpus size, not the general
@@ -45,10 +71,22 @@ about qualifying a deal in Demo stage?").
   accounts, not fast context on 30) and that one product for both "is
   unlikely to land well." I scoped to the persona the brief names and didn't
   try to serve both.
+- **No batched insight queries.** Get Insights runs one `build_account_brief`
+  call per account the AE owns — connection reuse alone cut a 41-account
+  scan from 180s+ to ~12s, but it's still a naive per-account loop, not the
+  set-based batched queries (one query per data type across all owned
+  accounts) a production scan needs.
+- **No real per-AE identity.** The sidebar AE picker is a stand-in for login
+  — every AE reads through one shared Snowflake PAT today, scoped by an
+  `OWNER_AE` filter in the query, not by an enforced identity boundary.
+- **No calendar awareness.** The scoring model's "time urgency" dimension is
+  proxied by days-to-nearest-open-close-date, because there's no calendar
+  table in the schema — not an actual "this call is in 3 hours."
 - **No automated eval harness.** Given the time budget, I validated with
   scripted multi-turn conversations against both scenarios named in the
-  brief (see Quality) instead of building a scoring pipeline — a real gap,
-  addressed below.
+  brief (see Quality) instead of building a scoring pipeline. The dashboard's
+  useful/not-useful feedback loop is a first, live step toward a real signal
+  here — not a substitute for one.
 
 ## Architecture & key technical choices
 
@@ -57,7 +95,7 @@ over Claude Opus 4.8 — no agent framework. Every tool call in a
 transcript maps to a specific, readable function; nothing is hidden behind
 framework machinery.
 
-Two data sources, two deliberately different tool shapes:
+Three deliberately different layers, not two:
 
 - **Structured (Snowflake):** a live PAT-authenticated connection and 8
   parameterized query functions (`find_account`, `get_account_brief`,
@@ -71,6 +109,12 @@ Two data sources, two deliberately different tool shapes:
 - **Unstructured (enablement docs):** local Markdown, chunked on `##`
   headers, ranked by simple word overlap. No embeddings, no vector DB —
   appropriately sized for 8 documents.
+- **Scoring (`src/scoring.py`):** the dashboard's addition — turns a raw flag
+  into a priority score, band, feed category, and a specific recommended
+  action, all rule-based. Same principle as the flags themselves:
+  deterministic systems detect and rank the signal; the LLM only narrates,
+  summarizes, and drafts (chat answers, the on-demand call script) on top of
+  what scoring and flagging already decided.
 
 The system prompt encodes the interview findings directly: lead with the
 brief before answering the literal question; default to a few lines, not a
@@ -78,6 +122,16 @@ report (Thomas: "two lines... anything longer I'm going to skim"); ground
 pricing answers in deal context instead of pasting the cheat sheet (Thomas's
 specific warning); cite the enablement docs rather than answer from memory;
 say "I don't know" rather than guess.
+
+Two latency choices worth calling out, both made after the CLI already
+worked: **streamed responses** (`stream_turn` in `src/agent.py`, wired into
+the dashboard's chat) so the AE sees text arrive progressively instead of
+staring at a spinner; and **account-brief pinning** — when the dashboard has
+already fetched an account's brief to render the page, it hands that JSON
+straight into the system prompt instead of making the agent call
+`get_account_brief` again, skipping a full Claude → Snowflake → Claude
+round trip on the single most common path (open an account, immediately ask
+about it).
 
 ## Quality: how I'd know it's good enough
 
@@ -104,33 +158,49 @@ and the agent independently connected it to the "lost to Workday" case study
 pattern in the enablement docs — that cross-reference wasn't hand-tuned, it
 came from the model reasoning over what `search_enablement` returned).
 
+The dashboard adds one more, smaller signal beyond hand-validation: every
+insight card can be marked Useful / Not useful, and the Home page shows a
+live "percent useful" per flag type from `data/feedback.jsonl`. It's a real
+mechanism, not a mock — but it's only as good as the sample behind it, and
+right now that sample is my own demo session, not a population of real AEs.
+
 **What's missing for a real quality bar:** a small labeled eval set — maybe
 10–15 accounts with a human-written "what should the AE know" reference
 answer — scored by an LLM-judge rubric (or human review) on every prompt or
 tool change, so iteration doesn't silently regress. Also missing: an
 automated hallucination check (do the numbers in the model's answer actually
-appear in the tool results it received), and real usage signal — does the AE
-act on a flag, ignore it, or correct it.
+appear in the tool results it received), and enough real feedback-loop volume
+to trust the precision numbers instead of just being reassured they exist.
 
 ## Path to production
 
-- **Real usage telemetry first.** Marcus's line matters most here: "if it
-  doesn't earn its keep on the first interaction, he won't come back."
-  Track which flags get surfaced and whether the AE follows up on them —
-  that's the actual product signal, more than any offline eval.
+- **Real usage telemetry, at real scale.** The feedback loop above is a
+  first version of Marcus's point — "if it doesn't earn its keep on the
+  first interaction, he won't come back" — but it needs a real AE
+  population and a real backing store, not a JSONL file from one demo
+  session.
 - **Eval harness in CI** — labeled accounts + rubric, gating prompt/tool
   changes before they ship.
 - **Swap keyword search for embeddings** once the enablement corpus grows
   past a handful of docs.
+- **Batch the Get Insights scan** — set-based queries per account-owned data
+  type instead of per-account loop, needed once a book is scanned on a
+  schedule rather than on click.
+- **Real calendar awareness** — replace the days-to-close-date urgency proxy
+  with an actual next-meeting signal once a calendar data source exists.
 - **Meet the AE where they work.** Lena's prep ritual already spans
-  Salesforce, Gong, Drive, and Slack — a fifth standalone tool is friction,
+  Salesforce, Gong, Drive, and Slack — a sixth standalone tool is friction,
   not relief. This belongs embedded in Salesforce or Slack, not a separate
-  CLI/app.
+  CLI/dashboard.
 - **Per-AE identity**, not one shared PAT — the agent should only ever see
-  accounts the logged-in AE owns.
+  accounts the logged-in AE owns, enforced at the identity layer, not just a
+  `WHERE OWNER_AE = ...` clause.
 - **Graceful degradation** — if Snowflake or the enablement store is down,
   the agent should say so and still be useful, not fail the whole
   conversation mid-call-prep.
 - **Consider the enterprise variant as a separate roadmap item**, not a
   bolt-on — Ines's account shape (5 accounts, 12 stakeholders, 6-month
   cycles) needs a genuinely different tool, not more flags on this one.
+- **Manager rollups, CSM collaboration, and admin-tunable flag thresholds**
+  — named in `docs/PRD-phase1-dashboard.md`'s Phase 2/3, not attempted here;
+  see `frontend/lib/roadmap.py` for the full staged list.

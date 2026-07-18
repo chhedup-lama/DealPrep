@@ -14,9 +14,9 @@ import streamlit as st
 
 from frontend.lib import feedback, icons, nav, state
 from frontend.lib.branding import PURPLE, inject_css, insight_card
-from frontend.lib.chat import render_chat_turn
+from frontend.lib.chat import render_chat_history, render_chat_turn
 from frontend.lib.insights import get_insights_for_ae, group_insights
-from src.agent import build_client, final_text
+from src.agent import build_client
 
 st.set_page_config(
     page_title="AE Call-Prep", page_icon="🧭", layout="wide", initial_sidebar_state="collapsed"
@@ -35,11 +35,7 @@ with tab_chat:
     history_key = f"portfolio::{ae}"
     history = state.get_chat_history(history_key)
 
-    for msg in history:
-        role = "assistant" if msg["role"] == "assistant" else "user"
-        text = final_text(msg) if role == "assistant" else msg["content"]
-        with st.chat_message(role):
-            st.write(text)
+    render_chat_history(history, key_prefix=f"portfolio_{ae}")
 
     with st.container(key="chat_input_row"):
         with st.form(key="portfolio_chat_form", clear_on_submit=True, border=False):
@@ -54,7 +50,17 @@ with tab_chat:
                 submitted = st.form_submit_button("Send")
 
     if submitted and prompt:
-        render_chat_turn(build_client(), history, prompt)
+        render_chat_turn(build_client(), history, prompt, owner_ae=ae, key_prefix=f"portfolio_{ae}")
+        # render_chat_turn() draws the new turn right where it's called —
+        # after the input row above, since this custom pill input (unlike
+        # st.chat_input) isn't pinned to the bottom of the page. Without a
+        # rerun, the fresh exchange stays stuck below the input box until
+        # the next message is sent. Rerunning immediately re-draws
+        # everything from the history loop above, in the right order, the
+        # same way it will look from then on — matching the ChatGPT/Claude
+        # convention of the newest message always appearing above the box
+        # you type into, not below it.
+        st.rerun()
 
 with tab_insights:
     _, action_col = st.columns([5, 1])
