@@ -1,4 +1,4 @@
-"""Get Insights: a portfolio-wide scan over everything an AE owns, turned
+"""Needs Attention: a portfolio-wide scan over everything an AE owns, turned
 into scored, grouped insight cards (PRD-phase1-dashboard.md §8-10).
 
 Naive per-account loop for Path A (see docs/FRONTEND-BUILD-PLAN.md) — the

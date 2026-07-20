@@ -1,7 +1,7 @@
-"""Home page: sidebar nav + AE picker, and a Chat / Get Insights tab toggle
+"""Home page: sidebar nav + AE picker, and a Chat / Needs Attention tab toggle
 mirroring ChatGPT's own Chat/Work switcher — a ChatGPT-style centered hero
 with the portfolio-wide chat under "Chat", the insight feed under
-"Get Insights" (PRD §6.5)."""
+"Needs Attention" (PRD §6.5)."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ inject_css()
 
 ae = nav.render_sidebar_nav("Home")
 
-tab_chat, tab_insights = st.tabs(["Chat", "Get Insights"])
+tab_chat, tab_insights = st.tabs(["Chat", "Needs Attention"])
 
 with tab_chat:
     st.markdown(
@@ -65,7 +65,7 @@ with tab_chat:
 with tab_insights:
     _, action_col = st.columns([5, 1])
     with action_col:
-        scan_clicked = st.button("Get Insights", type="primary", width="stretch")
+        scan_clicked = st.button("Scan", type="primary", width="stretch")
 
     if scan_clicked:
         with st.spinner("Scanning your accounts — checking deals, usage, tickets, and stakeholders..."):
@@ -135,7 +135,7 @@ with tab_insights:
         return f"![]({icon_uri}) {name}{suffix}"
 
     if results is None:
-        st.info("Click **Get Insights** to scan your book for anything that needs attention today.")
+        st.info("Click **Scan** to check your book for anything that needs attention today.")
     elif not results:
         st.success("No flags across your book — you're clear.")
     else:

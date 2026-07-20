@@ -106,7 +106,7 @@ def inject_css() -> None:
             border-radius: 8px !important;
         }}
 
-        /* Chat / Get Insights tab toggle on the home page, restyled from
+        /* Chat / Needs Attention tab toggle on the home page, restyled from
         Streamlit's default underlined tabs into a centered rounded pill
         segmented control (personio/chatgpt-style). Targets the standard
         ARIA tab roles rather than generated class names, since those are

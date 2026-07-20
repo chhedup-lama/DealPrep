@@ -15,7 +15,7 @@ from __future__ import annotations
 ROADMAP: list[dict] = [
     # --- Built now: the full Phase 1 track (base + 1B + 1C + 1D) ---
     {
-        "title": "Portfolio-wide Get Insights scan, scored and grouped",
+        "title": "Portfolio-wide Needs Attention scan, scored and grouped",
         "phase": "mvp",
         "detail": "Every flag across an AE's book becomes a scored insight card (time urgency, deal value, account importance, risk severity, actionability) and is grouped into Prepare Now / High-Risk Renewals / Expansion / Discovery / Missing Stakeholders / Support Risk / Competitive Risk / Monitor.",
         "source": "PRD-phase1-dashboard.md §8-9 (Phase 1B)",
@@ -73,7 +73,7 @@ ROADMAP: list[dict] = [
     {
         "title": "Scheduled scans + proactive notifications",
         "phase": "phase2",
-        "detail": "Get Insights today is on-click only. Proactive, scheduled scans with Slack/email nudges when a new high-severity flag appears.",
+        "detail": "Needs Attention today is on-click only. Proactive, scheduled scans with Slack/email nudges when a new high-severity flag appears.",
         "source": "PRD-phase1-dashboard.md Phase 2",
     },
     {
@@ -101,7 +101,7 @@ ROADMAP: list[dict] = [
         "source": "PRD-phase1-dashboard.md §14 (NFR — Security)",
     },
     {
-        "title": "Batched Get Insights queries",
+        "title": "Batched Needs Attention queries",
         "phase": "phase2",
         "detail": "Connection reuse already cut a scan from 180s+ to ~12s. Set-based batched queries (one query per data type across all owned accounts) is the next step down, needed at production scale.",
         "source": "PRD-phase1-dashboard.md §14 (NFR — Performance)",
